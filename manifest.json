@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Exit Page",
+  "description": "Exit Page Game",
+  "version": "1.0.0",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "클릭하면 팝업이 열립니다"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["index.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["*.png"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

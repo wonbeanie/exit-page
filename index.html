@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        :root {
+            --primary-color: #4A90E2;
+            --primary-hover: #357ABD;
+            --secondary-color: #6c757d;
+            --secondary-hover: #5a6268;
+            --bg-color: #ffffff;
+            --text-color: #333;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            margin: 0;
+            width: 350px; /* 익스텐션 팝업 적정 사이즈 */
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* 스테이지 정보 스타일 */
+        .stage-info {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--text-color);
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background: #eee;
+            border-radius: 20px;
+        }
+
+        /* 버튼 컨테이너 */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        /* 공통 버튼 스타일 */
+        .btn {
+            border: none;
+            border-radius: 10px;
+            color: white;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex: 1; /* 버튼 크기 균등 분배 */
+            white-space: nowrap;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+        }
+
+        .start-btn {
+            background-color: var(--primary-color);
+        }
+
+        .start-btn:hover {
+            background-color: var(--primary-hover);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        }
+
+        .exit-btn {
+            background-color: var(--secondary-color);
+        }
+
+        .exit-btn:hover {
+            background-color: var(--secondary-hover);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
+
+        .hide {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="stage" class="stage-info hide">
+        📍 현재 스테이지 : <span id="stage-num">1</span>
+    </div>
+
+    <div class="button-group">
+        <button id="start" class="btn start-btn">게임 시작</button>
+        <button id="end" class="btn exit-btn">게임 종료</button>
+    </div>
+
+    <div id="log">
+
+    </div>
+
+    <script src="./popup.js"></script>
+</body>
+</html>
