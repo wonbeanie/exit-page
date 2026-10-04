@@ -61,12 +61,16 @@ startElement.addEventListener("click", function(){
     "fake" : false,
     "stage" : 1
   });
+
+  window.close();
 });
 
 endElement.addEventListener("click", function(){
   chrome.storage.local.set({
     "start" : false
-  })
+  });
+  
+  window.close();
 });
 
 function showGameStartUI(){

@@ -2,35 +2,66 @@ let stageProblem = false;
 let stage = 0;
 
 chrome.storage.onChanged.addListener((changes) => {
-  if(Object.hasOwn(changes, "start")){
-    if(Object.hasOwn(changes.start, "newValue")){
-      if(changes.start.newValue === true){
-        stage = 1;
-        initGame();
-        return;
-      }
-    }
-  }
-
-  if(Object.hasOwn(changes, "stage")){
-    if(Object.hasOwn(changes.stage, "newValue")){
-      stage = changes.stage.newValue;
+  if(isChangedValue(changes, "start")){
+    if(changes.start.newValue === true){
+      stage = 1;
       initGame();
       return;
     }
+    else {
+      window.location.reload();
+    }
+  }
+
+  if(isChangedValue(changes, "stage")){
+    stage = changes.stage.newValue;
+    initGame();
+    return;
   }
 });
 
 chrome.storage.local.get(null).then(async (result) => {
-  if(Object.hasOwn(result, "start")){
+  if(isValue(result, "start")){
     if(result.start === true){
       gameStateUpdate(result);
     }
   }
 });
 
+function isChangedValue(changes, key){
+  if(Object.hasOwn(changes, key)){
+    if(changes.start){
+      if(Object.hasOwn(changes.start, "newValue")){
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function isValue(data, key){
+  if(Object.hasOwn(data, key)){
+    return true;
+  }
+
+  return false;
+}
+
 function gameStateUpdate(data){
   if(Object.hasOwn(data, "common")){
+    if(Object.hasOwn(data, "fail")){
+      if(data.fail === true){
+        setStorage({
+          stage : 1,
+          fake : false,
+          fail : false
+        });
+        initGame();
+        return;
+      }
+    }
+
     if(data.common === true){
       if(data.url === window.location.href){
         const curStage = data.stage || 1;
@@ -38,12 +69,12 @@ function gameStateUpdate(data){
           gameClear();
           return;
         }
-
         setStorage({
           stage : curStage + 1,
           common : false
         });
       }
+      initGame();
       return;
     }
   }
@@ -54,6 +85,7 @@ function gameStateUpdate(data){
         stage : 1,
         fake : false
       });
+      initGame();
       return;
     }
   }
@@ -69,11 +101,10 @@ function gameStateUpdate(data){
         stage : curStage + 1,
         addScore : false
       });
+      initGame();
       return;
     }
   }
-
-  initGame();
 }
 
 function isEndScore(score){
@@ -97,7 +128,7 @@ function getCleanVisibleElements() {
   const visibleElemtns = Array.from(allElements).filter(el => {
     if (excludeTags.includes(el.tagName)) return false;
 
-    if (el.offsetWidth === 0 || el.offsetHeight === 0) return false;
+    if (el.offsetWidth <= 10 || el.offsetHeight <= 10) return false;
     const style = window.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
 
@@ -109,9 +140,10 @@ function getCleanVisibleElements() {
     const hasText = el.innerText?.trim().length > 0;
 
     // TODO 이미지 변경 기능
-    // const isPicture = el.tagName === 'IMG';
-    // return hasText || isPicture;
-    return hasText;
+    const isPicture = el.tagName === 'IMG';
+    return hasText || isPicture;
+    // return hasText;
+    // return isPicture;
   });
 
   const uniqueList = visibleElemtns.filter(parent => {
@@ -137,20 +169,80 @@ function isProblem(state){
 }
 
 function initGame(){
-  if(document.readyState === 'complete'){
-    game();
-  }
-  window.addEventListener('load', async () => {
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(async () => await game());
+  showLoading();
+  setTimeout(() => {
+    if(document.readyState === 'complete'){
+      game();
     }
-    else {
-      await game();
-    }
+    window.addEventListener('load', async () => {
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(async () => await game());
+      }
+      else {
+        await game();
+      }
+    });
+  }, 2000)
+}
+
+function test(){
+  const newBody = document.body.cloneNode(true);
+  document.body.replaceWith(newBody);
+
+  // document.querySelectorAll('iframe').forEach((iframe) => {
+  //   iframe.remove();
+  // });
+
+  document.querySelectorAll('iframe').forEach((iframe) => {
+    const rect = iframe.getBoundingClientRect();
+
+    const overlay = document.createElement('div');
+
+    Object.assign(overlay.style, {
+      position: 'absolute',
+      left: `${rect.left + window.scrollX}px`,
+      top: `${rect.top + window.scrollY}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      background: '#000',
+      zIndex: '2',
+      // pointerEvents: 'none',
+    });
+
+    document.body.appendChild(overlay);
   });
+
+  document.addEventListener(
+    'click',
+    async (e) => {
+      if(e.target.closest('[data-fake-element="true"]')) return;
+      e.preventDefault();
+      e.stopPropagation();
+
+      await setStorage({
+        fail : true
+      });
+
+      window.location.reload();
+    },
+    true
+  );
 }
 
 async function game(){
+  test();
+
+  await waitForImages();
+
+  document.querySelectorAll('*').forEach((el) => {
+    el.style.animationPlayState = 'paused';
+    el.style.transition = 'none';
+  });
+
+  document.querySelectorAll('[target="_blank"]').forEach((element) => {
+    element.removeAttribute('target');
+  });
+
   const result = getCleanVisibleElements();
 
   const visibleData = result.map(el => ({
@@ -160,24 +252,30 @@ async function game(){
     element : el
   }));
 
-  const isProblem = !checkChance(0);
+  const isProblem = !checkChance(40);
 
   stageProblem = isProblem;
 
-  if(!isProblem){
+  const fakeData = getRandomItem(visibleData);
+  if(!isProblem || (isProblem && (fakeData == null || fakeData.length === 0))){
+    stageProblem = false;
     await setStorage({
       common : true,
       url : window.location.href
     })
-    return;
+  }
+  else {
+    await setFakeElement(fakeData);
   }
 
-  const fakeData = getRandomItem(visibleData);
-  await setFakeElement(fakeData);
+
+  hideLoading();
 }
 
 async function setFakeElement(fakeData){
   const fakeElement = fakeData.element;
+
+  let length = getElementCapacity(fakeElement);
 
   await setStorage({
     fake : true,
@@ -189,13 +287,22 @@ async function setFakeElement(fakeData){
     fakeCorrect(fakeElement);
   }, true);
 
+  fakeElement.dataset.fakeElement = 'true';
+
   if(fakeElement.tagName === 'IMG'){
-    const imgUrl = chrome.runtime.getURL('picture.png');
+    const imgUrl = chrome.runtime.getURL('assets/images.jpg');
     fakeElement.src = imgUrl;
+
+    fakeElement.style.height = "100%";
+    fakeElement.style.position = 'absolute';
+    fakeElement.style.left = '50%';
+    fakeElement.style.top = '50%';
+    fakeElement.style.transform = 'translate(-50%, -50%)';
+    fakeElement.style.zIndex = '999999';
     return;
   }
 
-  fakeElement.textContent = "텍스트";
+  fakeElement.textContent = "exit-8";
 }
 
 const checkChance = (percentage) => {
@@ -225,4 +332,82 @@ async function fakeCorrect(element){
     addScore : true
   });
   window.location.reload();
+}
+
+function getElementCapacity(element) {
+  const style = window.getComputedStyle(element);
+  const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const maxWidth = element.clientWidth;
+
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  context.font = font;
+
+  // 가장 표준적인 글자인 '가' 또는 'A'의 너비를 측정 (평균값 사용)
+  const charWidth = context.measureText('가').width;
+
+  // 전체 너비를 글자 하나 너비로 나눔
+  return Math.floor(maxWidth / charWidth);
+}
+
+function waitForImages() {
+  const images = [...document.images].filter((img) => img.loading !== 'lazy');
+
+  return Promise.all(
+    images.map((img) => {
+      // 이미 로드된 이미지
+      if (img.complete) {
+        return Promise.resolve();
+      }
+
+      // 아직 로드되지 않은 이미지
+      return new Promise((resolve) => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+      });
+    })
+  );
+}
+
+function showLoading() {
+  const overlay = document.createElement('div');
+
+  overlay.id = 'extension-loading-overlay';
+
+  Object.assign(overlay.style, {
+    position: 'fixed',
+    inset: '0',
+    zIndex: '2147483647',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#fff',
+    fontSize: '24px',
+    fontWeight: '600',
+  });
+
+  overlay.textContent = 'Loading...';
+
+  document.body.appendChild(overlay);
+}
+
+function hideLoading() {
+  document.querySelector('#extension-loading-overlay')?.remove();
+}
+
+function getHoverParents(element) {
+  const result = [];
+
+  let current = element.parentElement;
+
+  while (current) {
+    if (current.matches(':hover')) {
+      result.push(current);
+    }
+
+    current = current.parentElement;
+  }
+
+  return result;
 }
