@@ -5,7 +5,7 @@ chrome.storage.onChanged.addListener((changes) => {
   if(isChangedValue(changes, "start")){
     if(changes.start.newValue === true){
       stage = 1;
-      initGame();
+      initGame(true);
       return;
     }
     else {
@@ -171,7 +171,11 @@ function isProblem(state){
   return stageProblem === state;
 }
 
-function initGame(){
+async function initGame(init){
+  if(init){
+    await earlyStory();
+  }
+
   showLoading();
   setTimeout(() => {
     if(document.readyState === 'complete'){
@@ -256,6 +260,9 @@ async function game(){
   stageProblem = isProblem;
 
   const fakeData = getRandomItem(visibleData);
+
+  await hideLoading();
+
   if(!isProblem || (isProblem && (fakeData == null || fakeData.length === 0))){
     console.log("없음!");
     stageProblem = false;
@@ -270,9 +277,6 @@ async function game(){
 
     setTrick(fakeData, visibleData);
   }
-
-
-  hideLoading();
 }
 
 async function setFakeElement(fakeData){
@@ -369,6 +373,9 @@ function waitForImages() {
   );
 }
 
+let loadingPromise = null;
+let hideRequested = false;
+
 function showLoading() {
   const overlay = document.createElement('div');
 
@@ -378,22 +385,67 @@ function showLoading() {
     position: 'fixed',
     inset: '0',
     zIndex: '2147483647',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: '#000',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     color: '#fff',
-    fontSize: '24px',
-    fontWeight: '600',
+    fontSize: '18px',
+    fontWeight: '400',
+    fontFamily: 'monospace',
   });
 
-  overlay.textContent = 'Loading...';
+  const text = document.createElement('div');
 
-  document.body.appendChild(overlay);
+  Object.assign(text.style, {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    width: '420px',
+  });
+
+  overlay.appendChild(text);
+  document.documentElement.appendChild(overlay);
+
+  const messages = [
+    '시스템 상태: 정상',
+    '사이트 준비 중...',
+    '인스턴스 초기화...',
+    '메모리 동기화...',
+    '검사를 시작합니다.',
+  ];
+
+  loadingPromise = (async () => {
+    for (const message of messages) {
+      const line = document.createElement('div');
+
+      line.textContent = message;
+
+      Object.assign(line.style, {
+        opacity: '0',
+        transition: 'opacity 0.2s ease',
+      });
+
+      text.appendChild(line);
+
+      requestAnimationFrame(() => {
+        line.style.opacity = '1';
+      });
+
+      let sleepTime = 100;
+      await new Promise(resolve => setTimeout(resolve, sleepTime));
+    }
+  })();
 }
 
-function hideLoading() {
+async function hideLoading() {
+  if (loadingPromise) {
+    await loadingPromise;
+  }
+
   document.querySelector('#extension-loading-overlay')?.remove();
+
+  loadingPromise = null;
 }
 
 function getHoverParents(element) {
@@ -476,9 +528,9 @@ function setTrick(fakeData, visibleData){
   const trickItems = getRandomItems(visibleData, fakeData);
 
   const tricks = [
-    moveToCenterEvent,
-    sizeUpEvent,
-    sizeDownEvent,
+    // moveToCenterEvent,
+    // sizeUpEvent,
+    // sizeDownEvent,
     () => {}
   ];
 
@@ -505,4 +557,174 @@ function getRandomItems(array, initData) {
   }
 
   return result;
+}
+
+function earlyStory(){
+  const overlay = document.createElement('div');
+
+  overlay.id = 'extension-story-overlay';
+
+  Object.assign(overlay.style, {
+    position: 'fixed',
+    inset: '0',
+    zIndex: '2147483647',
+    backgroundColor: '#f5f5f5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: 'Arial, sans-serif',
+    color: '#222',
+  });
+
+  const chat = document.createElement('div');
+
+  Object.assign(chat.style, {
+    width: '400px',
+    height: '600px',
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  });
+
+  const header = document.createElement('div');
+
+  Object.assign(header.style, {
+    height: '56px',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 20px',
+    boxSizing: 'border-box',
+    borderBottom: '1px solid #eee',
+    fontSize: '16px',
+    fontWeight: '600',
+  });
+
+  header.textContent = '친구';
+
+  const messageContainer = document.createElement('div');
+
+  Object.assign(messageContainer.style, {
+    flex: '1',
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    overflowY: 'auto',
+    boxSizing: 'border-box',
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none',
+  });
+
+  chat.appendChild(header);
+  chat.appendChild(messageContainer);
+  overlay.appendChild(chat);
+  document.body.appendChild(overlay);
+
+  const messages = [
+    {
+      sender: 'friend',
+      text: '나 지금 너무 급해서 그런데 사이트 테스트 좀 해줄 수 있어?',
+    },
+    {
+      sender: 'me',
+      text: '무슨 테스트인데?',
+    },
+    {
+      sender: 'friend',
+      text: '어색하거나 이상한 이미지, 텍스트가 있으면 그 부분을 클릭하면 돼.',
+    },
+    {
+      sender: 'me',
+      text: '으흠... 그게 다야?',
+    },
+    {
+      sender: 'friend',
+      text: '응. 별거 아니야.',
+    },
+    {
+      sender: 'friend',
+      text: '일주일만 부탁할게. 제발~~~~',
+    },
+    {
+      sender: 'friend',
+      text: '다 끝나면 소고기 사줄게.',
+    },
+    {
+      sender: 'me',
+      text: '알았어.',
+    },
+    {
+      sender: 'friend',
+      text: '아, 그리고 테스트할 때 다른 사이트는 보지 마.',
+    },
+    {
+      sender: 'me',
+      text: '왜?',
+    },
+    {
+      sender: 'friend',
+      text: '테스트 끝날 때까지 다른 사이트 보면 꼬여버리거든.',
+    },
+    {
+      sender: 'me',
+      text: 'ㅇㅋㅇ',
+    },
+  ];
+
+  function addMessage({ sender, text }) {
+    const message = document.createElement('div');
+
+    Object.assign(message.style, {
+      alignSelf: sender === 'me' ? 'flex-end' : 'flex-start',
+      maxWidth: '75%',
+      padding: '10px 14px',
+      borderRadius: '16px',
+      lineHeight: '1.5',
+      fontSize: '14px',
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word',
+      backgroundColor: sender === 'me' ? '#007aff' : '#eee',
+      color: sender === 'me' ? '#fff' : '#222',
+      opacity: '0',
+      transform: 'translateY(5px)',
+      transition: 'opacity 0.2s ease, transform 0.2s ease',
+    });
+
+    message.textContent = text;
+
+    messageContainer.appendChild(message);
+
+    requestAnimationFrame(() => {
+      message.style.opacity = '1';
+      message.style.transform = 'translateY(0)';
+    });
+  }
+
+  async function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  const sleepTime = 100;
+
+  async function playChat() {
+    return new Promise(async (resolve) => {
+      for (const message of messages) {
+        addMessage(message);
+
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+
+        await sleep(sleepTime);
+      }
+
+      await sleep(sleepTime);
+
+      overlay.remove();
+      resolve();
+    })
+  }
+
+  return playChat();
 }
