@@ -124,9 +124,12 @@ function formatData(changeData = {}){
 function getCleanVisibleElements() {
   const allElements = document.querySelectorAll('*');
   const excludeTags = ['SCRIPT', 'STYLE', 'LINK', 'NOSCRIPT', 'SVG', 'IFRAME', 'BR'];
+  const excludeIds = ['extension-loading-overlay']
 
   const visibleElemtns = Array.from(allElements).filter(el => {
     if (excludeTags.includes(el.tagName)) return false;
+
+    if (excludeIds.includes(el.id)) return false;
 
     if (el.offsetWidth <= 10 || el.offsetHeight <= 10) return false;
     const style = window.getComputedStyle(el);
@@ -185,13 +188,9 @@ function initGame(){
   }, 2000)
 }
 
-function test(){
+function settingGame(){
   const newBody = document.body.cloneNode(true);
   document.body.replaceWith(newBody);
-
-  // document.querySelectorAll('iframe').forEach((iframe) => {
-  //   iframe.remove();
-  // });
 
   document.querySelectorAll('iframe').forEach((iframe) => {
     const rect = iframe.getBoundingClientRect();
@@ -205,8 +204,7 @@ function test(){
       width: `${rect.width}px`,
       height: `${rect.height}px`,
       background: '#000',
-      zIndex: '2',
-      // pointerEvents: 'none',
+      zIndex: '2'
     });
 
     document.body.appendChild(overlay);
@@ -227,12 +225,6 @@ function test(){
     },
     true
   );
-}
-
-async function game(){
-  test();
-
-  await waitForImages();
 
   document.querySelectorAll('*').forEach((el) => {
     el.style.animationPlayState = 'paused';
@@ -242,6 +234,12 @@ async function game(){
   document.querySelectorAll('[target="_blank"]').forEach((element) => {
     element.removeAttribute('target');
   });
+}
+
+async function game(){
+  await waitForImages();
+
+  settingGame();
 
   const result = getCleanVisibleElements();
 
@@ -252,12 +250,14 @@ async function game(){
     element : el
   }));
 
-  const isProblem = !checkChance(40);
+  // const isProblem = !checkChance(40);
+  const isProblem = true;
 
   stageProblem = isProblem;
 
   const fakeData = getRandomItem(visibleData);
   if(!isProblem || (isProblem && (fakeData == null || fakeData.length === 0))){
+    console.log("없음!");
     stageProblem = false;
     await setStorage({
       common : true,
@@ -265,7 +265,10 @@ async function game(){
     })
   }
   else {
+    console.log("있음!", fakeData.element);
     await setFakeElement(fakeData);
+
+    setTrick(fakeData, visibleData);
   }
 
 
@@ -274,9 +277,6 @@ async function game(){
 
 async function setFakeElement(fakeData){
   const fakeElement = fakeData.element;
-
-  let length = getElementCapacity(fakeElement);
-
   await setStorage({
     fake : true,
     url : window.location.href
@@ -407,6 +407,101 @@ function getHoverParents(element) {
     }
 
     current = current.parentElement;
+  }
+
+  return result;
+}
+
+function moveToCenterEvent(element){
+  const rect = element.getBoundingClientRect();
+  const clone = element.cloneNode(true);
+
+  setTimeout(() => {
+    element.style.visibility = "hidden";
+    element.parentElement.appendChild(clone);
+
+    document.body.appendChild(clone);
+
+    let style = {
+      position: 'fixed',
+      left: `${rect.left}px`,
+      top: `${rect.top}px`,
+      margin: '0',
+      transform: 'none',
+      transition: 'left 1s ease, top 1s ease',
+      background: "white"
+    };
+
+    if(element.tagName === "IMG"){
+      const rect = element.getBoundingClientRect();
+
+      style = {
+        ...style,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`
+      }
+    }
+
+    Object.assign(clone.style, style);
+
+    requestAnimationFrame(() => {
+      const x = (window.innerWidth - rect.width) / 2;
+      const y = (window.innerHeight - rect.height) / 2;
+
+      clone.style.left = `${x}px`;
+      clone.style.top = `${y}px`;
+    });
+
+    element.addEventListener('transitionend', () => {
+      element.style.display = 'none';
+    }, { once: true });
+  }, 3000);
+}
+
+function sizeUpEvent(element){
+  setTimeout(() => {
+    element.style.transition = 'transform 10s ease';
+    element.style.transform = 'scale(2)';
+  }, 3000);
+}
+
+function sizeDownEvent(element){
+  setTimeout(() => {
+    element.style.transition = 'transform 10s ease';
+    element.style.transform = 'scale(0)';
+  }, 3000);
+}
+
+function setTrick(fakeData, visibleData){
+  const trickItems = getRandomItems(visibleData, fakeData);
+
+  const tricks = [
+    moveToCenterEvent,
+    sizeUpEvent,
+    sizeDownEvent,
+    () => {}
+  ];
+
+  for(const item of trickItems){
+    const element = item.element;
+    const trickIndex = Math.floor(Math.random() * (tricks.length));
+    const trick = tricks[trickIndex];
+    trick(element);
+  }
+
+}
+
+function getRandomItems(array, initData) {
+  console.log(array);
+  const count = Math.floor(Math.random() * (array.length * 0.5 + 1));
+  const result = [initData];
+
+  while (result.length < count) {
+    const item = array[Math.floor(Math.random() * array.length)];
+
+    if (!result.includes(item)) {
+      result.push(item);
+    }
   }
 
   return result;
